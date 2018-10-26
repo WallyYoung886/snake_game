@@ -295,7 +295,7 @@ class LeaderData(object):
             self._con = mysql.connector.connect(
               host="localhost",
               user="root",
-              passwd="Didi1234",
+              passwd="",
               database = "snakey")
             self._leaderboard = self._con.cursor()
 
