@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>A web snake demo</title>
+  </head>
+  <body>
+    <h1 style="font-size:1.5em;">A snake game demo</h1>
+    <p id= 'goal' style="font-size:1.5em;" >Goal: 0 Hi-score:0</p>
+    <canvas id="snake_game" width="600" height="600">
+      A snake game demo canvas
+    </canvas>
+    <div class="intro">
+      <h2>Introduction</h2>
+      <p>press 'r' to start the game</p>
+      <p>press 1,2,3,4 to choose mode</p>
+      <p>use 'w','a','s','d' to control the snake moving</p>
+      <p>press 'q' to pause the game</p>
+    </div>
+    <br />
+    <p>Version: 0.4.2</p>
+    <div class="whatsNew">
+      <h2>What's New:</h2>
+      <ul>
+        <li>Bigger snake and better visual experience</li>
+        <li>Mode choosing is now avaliable</li>
+        <li>hi-scores are independent from each mode</li>
+      </ul>
+    </div>
+
+  </body>
+  <script type="text/javascript">
+
+  const author = 'Wally young';
+
+  const titileBG = 'rgb(147,209,226)';
+  const red = "rgb(250,20,20)";
+  const black = "rgb(0,0,0)";
+  const white = "rgb(250,250,250)";
+  const blue = "rgb(50,50,250)";
+  const green = 'rgb(0,250,0)';
+  const yellow = 'rgb(250,250,0)';
+  const colorArray = [red,blue,yellow,white,green];
+
+  const unit = 20;
+
+  let alive = 0;
+  let firstPlay = true;
+  let bodyPos = [];
+  let bodyColor = [];
+  let pos_x = unit*14, pos_y = unit*14;
+  let dx = 0, dy = -unit;
+  let foodx = -1, foody = -1;
+  let foodColor = null;
+
+  let score = 0, hiscore = 0;
+
+  let dur = 100;
+  let modeChose = false;
+  const mianloop = null;
+
+  let canvas = null;
+  let ctx = null;
+
+  const drawBG = () => {
+    ctx.fillStyle = black;
+    ctx.fillRect(0,0,30*unit,30*unit);
+  }
+
+  canvas = document.getElementById("snake_game");
+  if (canvas.getContext) {
+    ctx = canvas.getContext("2d");
+    drawBG();
+    ctx.font = "50px serif";
+    ctx.fillStyle = titileBG;
+    ctx.fillRect(5*unit,10*unit,20*unit,10*unit);
+    ctx.fillStyle = black;
+    ctx.fillText("Welcome!",10*unit,14*unit)
+    ctx.font = "30px serif";
+    ctx.fillText("press R to choose mode",8*unit,18*unit)
+
+    // key event - use DOM element as object
+    canvas.addEventListener('keydown', doKeyDown, true);
+    canvas.focus();
+    // key event - use window as object
+    window.addEventListener('keydown', doKeyDown, true);
+    function doKeyDown(e) {
+      /*
+      listening to the input
+      and change the direction
+      */
+      let keyID = e.keyCode ? e.keyCode : e.which;
+      //w for going up
+      if((keyID === 87 || keyID === 38) && dy != unit) {
+        dx = 0; dy = -unit;
+      }
+      //d for going right
+      if((keyID === 68 || keyID === 39) && dx != -unit) {
+        dx = unit; dy = 0;
+      }
+      //s for going down
+      if((keyID === 83 || keyID === 40) && dy != -unit) {
+        dx = 0; dy = unit;
+      }
+      //a for going left
+      if((keyID === 65 || keyID === 37) && dx != unit) {
+        dx = -unit; dy = 0;
+      }
+      //r for restart when dead
+      if(keyID === 82 && alive === 0) {
+        drawBG();
+        ctx.font = "20px serif";
+        ctx.fillStyle = titileBG;
+        ctx.fillRect(8*unit,5*unit,14*unit,15*unit);
+        ctx.fillStyle = black;
+        ctx.fillText("[1]Easy",12*unit,7*unit)
+        ctx.fillText("[2]Normal",12*unit,11*unit)
+        ctx.fillText("[3]Hard",12*unit,15*unit)
+        ctx.fillText("[4]HELL YEAH",12*unit,19*unit)
+        modeChose = true;
+      }
+      if(keyID === 49 && modeChose === true) {
+        dur = 250;
+        startGame();
+        modeChose = false;
+      }
+      if(keyID === 50 && modeChose === true) {
+        dur = 150;
+        startGame();
+        modeChose = false;
+      }
+      if(keyID === 51 && modeChose === true) {
+        dur = 100;
+        startGame();
+        modeChose = false;
+      }
+      if(keyID === 52 && modeChose === true) {
+        dur = 50;
+        startGame();
+        modeChose = false;
+      }
+      //q for pause game
+      if(keyID === 81 && alive != 0) {
+        if(alive === 1) {
+          alive = -1;
+        }
+        else {
+          drawBG();
+          ctx.fillStyle = foodColor;
+          ctx.fillRect(foodx+unit/10,foody+unit/10,unit*0.8,unit*0.8);
+          alive = 2;
+          move();
+        }
+      }
+    }
+
+    function createFood() {
+      foodx = Math.floor(Math.random()*30)*unit;
+      foody = Math.floor(Math.random()*30)*unit;
+
+      if(onBody(foodx,foody)) {
+        createFood();
+      }
+      else {
+        foodColor= colorArray[Math.floor(Math.random()*colorArray.length)];
+        ctx.fillStyle = foodColor;
+        ctx.fillRect(foodx+unit/10,foody+unit/10,unit*0.8,unit*0.8);
+      }
+    }
+
+    function onBody(newX,newY) {
+      /*
+      judge if the new position have Something on it
+      Parameters:
+        newX(int): x-axis for new position
+        newY(int): y-axis for new position
+      Returns:
+        (bool):true for Something on it; false for nothing on it
+      */
+      for(index in bodyPos) {
+        let dotx = bodyPos[index][0];
+        let doty = bodyPos[index][1];
+        if(dotx === newX && doty === newY) {return true;}
+      }
+      return false;
+    }
+
+    function startGame() {
+      /*
+      do the all preset
+      */
+      getHiscore();
+      drawBG();
+      bodyPos = [];
+      bodyColor = [];
+      pos_x = unit*14, pos_y = unit*14;
+      dx = 0, dy = -unit;
+      foodx = -1, foody = -1;
+
+      for(let i = 0; i<3;i++) {
+        pos_x += dx;
+        pos_y += dy;
+        let dotColor =colorArray[Math.floor(Math.random()*colorArray.length)];
+        ctx.fillStyle = dotColor;
+        bodyColor.push(dotColor);
+        ctx.fillRect(pos_x+unit/10,pos_y+unit/10,unit*0.8,unit*0.8);
+        bodyPos.unshift([pos_x,pos_y]);
+      }
+      alive = 2;
+      firstPlay = false;
+      move();
+    }
+
+    function move() {
+      /*
+      maincontrol program
+      */
+      if(foodx === -1) {
+        createFood();
+      }
+
+      if(pos_x === foodx && pos_y === foody) {
+        foodx = -1;
+        foody = -1;
+        bodyColor.push(foodColor);
+      }
+      else {
+        let tail = bodyPos.pop()
+        ctx.fillStyle = black;
+        ctx.fillRect(tail[0],tail[1],unit,unit);
+      }
+
+      updateInfo();
+
+      pos_x += dx;
+      pos_y += dy;
+      if(onBody(pos_x,pos_y)){
+        alive = 0;
+      }
+      if(pos_x>unit*29 || pos_x<0 || pos_y>unit*29 || pos_y<0) {
+        alive = 0;
+      }
+      bodyPos.unshift([pos_x,pos_y]);
+      for (index in bodyPos) {
+        let tempX = bodyPos[index][0], tempY = bodyPos[index][1];
+        ctx.fillStyle = bodyColor[index];
+        ctx.fillRect(tempX+unit/10,tempY+unit/10,unit*0.8,unit*0.8);
+      }
+
+      if(alive === 2){
+        alive = 1;
+        mainLoop = setInterval(move,dur);
+      }
+      else if (alive === -1) {
+        ctx.font = "40px serif";
+        ctx.fillStyle = titileBG;
+        ctx.fillRect(5*unit,10*unit,20*unit,10*unit);
+        ctx.fillStyle = black;
+        ctx.fillText("Paused!",12*unit,16*unit);
+        clearInterval(mainLoop);
+      }
+      else if(alive === 0 && firstPlay === false && modeChose === false) {
+        saveHiscore();
+        ctx.font = "30px serif";
+        ctx.fillStyle = titileBG;
+        ctx.fillRect(5*unit,10*unit,20*unit,10*unit);
+        ctx.fillStyle = black;
+        ctx.fillText("Press R & Try again!",9*unit,16*unit)
+        clearInterval(mainLoop);
+      }
+    }
+
+    function updateInfo() {
+      /*Update score info on the top*/
+      score = bodyPos.length - 2;
+      hiscore = hiscore<score? score: hiscore;
+      document.getElementById('goal').innerHTML = ("Score: " + score +
+                                                  " Hi-score: " +  hiscore);
+    }
+
+    function getHiscore() {
+      /*Using localStorage to save hiest score*/
+      let snakeHist = null;
+      switch (dur) {
+        case 250:
+          snakeHist = localStorage.getItem("easyHist");
+          hiscore = snakeHist?snakeHist:0;
+          break;
+        case 150:
+          snakeHist = localStorage.getItem("normalHist");
+          hiscore = snakeHist?snakeHist:0;
+          break;
+        case 100:
+          snakeHist = localStorage.getItem("hardHist");
+          hiscore = snakeHist?snakeHist:0;
+          break;
+        case 50 :
+          snakeHist = localStorage.getItem("hellHist");
+          hiscore = snakeHist?snakeHist:0;
+          break;
+        default:
+          hiscore = 0;
+          break;
+      }
+    }
+
+    function saveHiscore() {
+      let snakeHist = null;
+      switch (dur) {
+        case 250:
+          snakeHist = localStorage.getItem("easyHist");
+          if(hiscore > snakeHist || snakeHist === null) {
+            snakeHist = hiscore;
+            localStorage.setItem("easyHist",snakeHist);
+          }
+          break;
+        case 150:
+          snakeHist = localStorage.getItem("normalHist");
+          if(hiscore > snakeHist || snakeHist === null) {
+            snakeHist = hiscore;
+            localStorage.setItem("normalHist",snakeHist);
+          }
+          break;
+        case 100:
+          snakeHist = localStorage.getItem("hardHist");
+          if(hiscore > snakeHist || snakeHist === null) {
+            snakeHist = hiscore;
+            localStorage.setItem("hardHist",snakeHist);
+          }
+          break;
+        case 50 :
+          snakeHist = localStorage.getItem("hellHist");
+          if(hiscore > snakeHist || snakeHist === null) {
+            snakeHist = hiscore;
+            localStorage.setItem("hellHist",snakeHist);
+          }
+          break;
+        default:
+          break;
+      }
+    }
+
+  }
+  </script>
+</html>
